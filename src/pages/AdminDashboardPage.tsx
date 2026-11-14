@@ -465,7 +465,15 @@ export const AdminDashboardPage: React.FC = () => {
                     onClick={() =>
                       void adminToggleHostelFlags(firebaseUser.uid, h, {
                         isFeatured: !h.isFeatured,
-                      }).then(() => pushToast({ title: 'Featured flag updated', variant: 'success' }))
+                      })
+                        .then(() => pushToast({ title: 'Featured flag updated', variant: 'success' }))
+                        .catch((err) =>
+                          pushToast({
+                            title: 'Could not update featured flag',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        )
                     }
                     className={`min-h-[36px] px-3 rounded-lg text-xs font-semibold ${
                       h.isFeatured
@@ -480,7 +488,15 @@ export const AdminDashboardPage: React.FC = () => {
                     onClick={() =>
                       void adminToggleHostelFlags(firebaseUser.uid, h, {
                         isSponsored: !h.isSponsored,
-                      }).then(() => pushToast({ title: 'Sponsored flag updated', variant: 'success' }))
+                      })
+                        .then(() => pushToast({ title: 'Sponsored flag updated', variant: 'success' }))
+                        .catch((err) =>
+                          pushToast({
+                            title: 'Could not update sponsored flag',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        )
                     }
                     className={`min-h-[36px] px-3 rounded-lg text-xs font-semibold ${
                       h.isSponsored
@@ -495,7 +511,15 @@ export const AdminDashboardPage: React.FC = () => {
                     onClick={() =>
                       void adminToggleHostelFlags(firebaseUser.uid, h, {
                         listingStatus: h.listingStatus === 'suspended' ? 'active' : 'suspended',
-                      }).then(() => pushToast({ title: 'Listing status updated', variant: 'info' }))
+                      })
+                        .then(() => pushToast({ title: 'Listing status updated', variant: 'info' }))
+                        .catch((err) =>
+                          pushToast({
+                            title: 'Could not update listing status',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        )
                     }
                     className="min-h-[36px] px-3 rounded-lg border border-rose-300 text-rose-700 text-xs font-semibold"
                   >
@@ -531,10 +555,18 @@ export const AdminDashboardPage: React.FC = () => {
                       onClick={() =>
                         void adminUpdateUserAccount(firebaseUser.uid, u.uid, {
                           ownerVerified: !u.ownerVerified,
-                        }).then(() => {
-                          void loadSnapshot();
-                          pushToast({ title: 'Owner verification updated', variant: 'success' });
                         })
+                          .then(() => {
+                            void loadSnapshot();
+                            pushToast({ title: 'Owner verification updated', variant: 'success' });
+                          })
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not update owner verification',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[36px] px-3 rounded-lg border border-emerald-300 text-emerald-800 text-xs font-semibold"
                     >
@@ -546,10 +578,18 @@ export const AdminDashboardPage: React.FC = () => {
                     onClick={() =>
                       void adminUpdateUserAccount(firebaseUser.uid, u.uid, {
                         accountStatus: u.accountStatus === 'active' ? 'suspended' : 'active',
-                      }).then(() => {
-                        void loadSnapshot();
-                        pushToast({ title: 'Account status updated', variant: 'info' });
                       })
+                        .then(() => {
+                          void loadSnapshot();
+                          pushToast({ title: 'Account status updated', variant: 'info' });
+                        })
+                        .catch((err) =>
+                          pushToast({
+                            title: 'Could not update account status',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        )
                     }
                     className="min-h-[36px] px-3 rounded-lg border border-rose-300 text-rose-700 text-xs font-semibold"
                   >
@@ -582,10 +622,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        void adminModerateReview(firebaseUser.uid, rev.id, 'approved').then(() => {
-                          void loadSnapshot();
-                          pushToast({ title: 'Review approved', variant: 'success' });
-                        })
+                        void adminModerateReview(firebaseUser.uid, rev.id, 'approved')
+                          .then(() => {
+                            void loadSnapshot();
+                            pushToast({ title: 'Review approved', variant: 'success' });
+                          })
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not approve review',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[36px] px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold"
                     >
@@ -594,10 +642,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        void adminModerateReview(firebaseUser.uid, rev.id, 'rejected').then(() => {
-                          void loadSnapshot();
-                          pushToast({ title: 'Review rejected', variant: 'info' });
-                        })
+                        void adminModerateReview(firebaseUser.uid, rev.id, 'rejected')
+                          .then(() => {
+                            void loadSnapshot();
+                            pushToast({ title: 'Review rejected', variant: 'info' });
+                          })
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not reject review',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[36px] px-3 rounded-lg border border-rose-300 text-rose-700 text-xs font-semibold"
                     >
@@ -632,10 +688,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        void adminUpdateReportStatus(firebaseUser.uid, rep.id, 'resolved').then(() => {
-                          void loadSnapshot();
-                          pushToast({ title: 'Report resolved', variant: 'success' });
-                        })
+                        void adminUpdateReportStatus(firebaseUser.uid, rep.id, 'resolved')
+                          .then(() => {
+                            void loadSnapshot();
+                            pushToast({ title: 'Report resolved', variant: 'success' });
+                          })
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not resolve report',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[36px] px-3 rounded-lg bg-emerald-600 text-white text-xs font-semibold"
                     >
@@ -644,10 +708,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        void adminUpdateReportStatus(firebaseUser.uid, rep.id, 'dismissed').then(() => {
-                          void loadSnapshot();
-                          pushToast({ title: 'Report dismissed', variant: 'info' });
-                        })
+                        void adminUpdateReportStatus(firebaseUser.uid, rep.id, 'dismissed')
+                          .then(() => {
+                            void loadSnapshot();
+                            pushToast({ title: 'Report dismissed', variant: 'info' });
+                          })
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not dismiss report',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[36px] px-3 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold"
                     >

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  calculateHostelInventoryRollup,
   canTransitionBookingStatus,
+  doDatesOverlap,
   filterAndSortHostels,
   formatMwk,
   getPolygonCentroid,
@@ -40,13 +42,72 @@ test('validateBookingDates rejects inverted dates and invalid strings', () => {
   assert.equal(validateBookingDates('invalid', '2026-12-20').valid, false);
 });
 
-test('canTransitionBookingStatus enforces terminal locking and actor permissions', () => {
+test('canTransitionBookingStatus enforces strict state graph and actor permissions', () => {
   assert.equal(canTransitionBookingStatus('pending', 'accepted', 'owner'), true);
+  assert.equal(canTransitionBookingStatus('pending', 'completed', 'owner'), false);
+  assert.equal(canTransitionBookingStatus('accepted', 'accepted', 'owner'), false);
+  assert.equal(canTransitionBookingStatus('accepted', 'completed', 'owner'), true);
+  assert.equal(canTransitionBookingStatus('accepted', 'declined', 'owner'), true);
   assert.equal(canTransitionBookingStatus('pending', 'accepted', 'student'), false);
   assert.equal(canTransitionBookingStatus('pending', 'cancelled', 'student'), true);
+  assert.equal(canTransitionBookingStatus('accepted', 'cancelled', 'student'), false);
   assert.equal(canTransitionBookingStatus('completed', 'cancelled', 'student'), false);
   assert.equal(canTransitionBookingStatus('declined', 'accepted', 'owner'), false);
   assert.equal(canTransitionBookingStatus('completed', 'cancelled', 'admin'), true);
+});
+
+test('doDatesOverlap and calculateHostelInventoryRollup validate booking overlap and room rollups', () => {
+  assert.equal(doDatesOverlap('2026-09-01', '2026-12-01', '2026-11-01', '2027-01-01'), true);
+  assert.equal(doDatesOverlap('2026-09-01', '2026-10-01', '2026-10-01', '2026-12-01'), false);
+
+  const rollup = calculateHostelInventoryRollup([
+    {
+      id: 'r1',
+      hostelId: 'h1',
+      ownerId: 'o1',
+      name: 'Single',
+      category: 'single',
+      priceMwk: 45000,
+      depositMwk: 45000,
+      paymentPeriod: 'monthly',
+      totalUnits: 4,
+      availableUnits: 3,
+      isPublished: true,
+      updatedAtMs: 1,
+    },
+    {
+      id: 'r2',
+      hostelId: 'h1',
+      ownerId: 'o1',
+      name: 'Self-Contained',
+      category: 'self_contained',
+      priceMwk: 75000,
+      depositMwk: 75000,
+      paymentPeriod: 'monthly',
+      totalUnits: 2,
+      availableUnits: 2,
+      isPublished: true,
+      updatedAtMs: 1,
+    },
+    {
+      id: 'r3',
+      hostelId: 'h1',
+      ownerId: 'o1',
+      name: 'Draft Room',
+      category: 'shared',
+      priceMwk: 20000,
+      depositMwk: 0,
+      paymentPeriod: 'monthly',
+      totalUnits: 5,
+      availableUnits: 5,
+      isPublished: false,
+      updatedAtMs: 1,
+    },
+  ]);
+
+  assert.equal(rollup.totalAvailableRooms, 5);
+  assert.equal(rollup.minPriceMwk, 45000);
+  assert.equal(rollup.maxPriceMwk, 75000);
 });
 
 test('getPolygonCentroid computes geometric center', () => {

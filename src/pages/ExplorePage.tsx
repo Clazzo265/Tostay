@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Filter, LayoutGrid, Map as MapIcon, RotateCcw, Scale, X } from 'lucide-react';
 import { HostelCard } from '../components/hostel/HostelCard';
@@ -39,6 +39,17 @@ export const ExplorePage: React.FC = () => {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedMapHostelId, setSelectedMapHostelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    const campusParam = searchParams.get('campus');
+    const maxPriceParam = searchParams.get('maxPrice');
+    const roomTypeParam = searchParams.get('roomType') as RoomCategoryType | null;
+    if (qParam !== null) setQuery(qParam);
+    if (campusParam !== null) setCampusId(campusParam || 'all');
+    if (maxPriceParam !== null) setMaxPrice(maxPriceParam);
+    if (roomTypeParam !== null) setRoomCategory(roomTypeParam || 'all');
+  }, [searchParams]);
 
   const activeCampus = useMemo(
     () => campuses.find((c) => c.id === campusId) ?? campuses[0],

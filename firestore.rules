@@ -395,14 +395,17 @@ service cloud.firestore {
         && (
           isAdmin() || (
             existing().ownerId == request.auth.uid
-            && incoming().verificationStatus == existing().verificationStatus
+            && (
+              incoming().verificationStatus == existing().verificationStatus
+              || (existing().verificationStatus == 'rejected' && incoming().verificationStatus == 'pending' && incoming().listingStatus == 'pending_review')
+            )
             && incoming().isFeatured == existing().isFeatured
             && incoming().isSponsored == existing().isSponsored
             && (
               // Action: Owner edits property details & coordinates (resets location verification only if coords/boundary changed)
               (existing().listingStatus != 'suspended' && incoming().diff(existing()).affectedKeys().hasOnly([
                 'name', 'description', 'address', 'area', 'lat', 'lng', 'entranceLat', 'entranceLng',
-                'hasCoordinates', 'boundaryCoordinates', 'locationStatus', 'listingStatus',
+                'hasCoordinates', 'boundaryCoordinates', 'locationStatus', 'verificationStatus', 'listingStatus',
                 'facilities', 'imageUrls', 'minPriceMwk', 'maxPriceMwk', 'paymentPeriod',
                 'depositMwk', 'totalAvailableRooms', 'houseRules', 'ownerDisplayName',
                 'ownerWhatsapp', 'lastAvailabilityConfirmation', 'updatedAt'
@@ -411,7 +414,7 @@ service cloud.firestore {
                 || (!incoming().diff(existing()).affectedKeys().hasAny(['lat', 'lng', 'entranceLat', 'entranceLng', 'boundaryCoordinates', 'hasCoordinates']) && incoming().locationStatus == existing().locationStatus)
               ) && (incoming().listingStatus in ['draft', 'pending_review'] || incoming().listingStatus == existing().listingStatus))
               ||
-              // Action: Owner confirms availability only
+              // Action: Owner confirms availability or synchronizes room inventory
               (incoming().diff(existing()).affectedKeys().hasOnly(['totalAvailableRooms', 'lastAvailabilityConfirmation', 'updatedAt'])
                 && incoming().lastAvailabilityConfirmation == request.time)
             )
@@ -459,10 +462,18 @@ service cloud.firestore {
       allow create: if isValidId(bookingId) && isVerifiedUser()
         && isValidBooking(incoming())
         && incoming().studentId == request.auth.uid
+        && incoming().studentId != incoming().ownerId
         && incoming().status == 'pending'
         && exists(/databases/$(database)/documents/hostels/$(incoming().hostelId))
         && exists(/databases/$(database)/documents/rooms/$(incoming().roomId))
         && get(/databases/$(database)/documents/hostels/$(incoming().hostelId)).data.ownerId == incoming().ownerId
+        && get(/databases/$(database)/documents/hostels/$(incoming().hostelId)).data.listingStatus == 'active'
+        && get(/databases/$(database)/documents/hostels/$(incoming().hostelId)).data.verificationStatus == 'verified'
+        && get(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostelId == incoming().hostelId
+        && get(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.isPublished == true
+        && get(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.availableUnits > 0
+        && incoming().totalAmountMwk == get(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.priceMwk
+        && incoming().rentalPeriod == get(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.paymentPeriod
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
       allow update: if isValidId(bookingId) && isVerifiedUser()
@@ -475,17 +486,24 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin() || (
-            // Terminal state lock for non-admins
+            // Terminal state lock and strict state transition graph for non-admins
             !(existing().status in ['declined', 'cancelled', 'completed']) && (
-              // Action: Student cancels own booking
+              // Action: Student cancels pre-acceptance booking
               (existing().studentId == request.auth.uid
+                && existing().status in ['pending', 'under_review', 'viewing_requested', 'viewing_confirmed']
                 && incoming().status == 'cancelled'
                 && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
               ||
-              // Action: Owner reviews, accepts, declines, or completes booking
+              // Action: Owner advances, accepts, completes, or declines/releases booking
               (existing().ownerId == request.auth.uid
                 && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt'])
-                && incoming().status in ['under_review', 'viewing_requested', 'viewing_confirmed', 'accepted', 'declined', 'completed'])
+                && (
+                  (existing().status == 'pending' && incoming().status in ['under_review', 'viewing_requested', 'viewing_confirmed', 'accepted', 'declined'])
+                  || (existing().status == 'under_review' && incoming().status in ['viewing_requested', 'viewing_confirmed', 'accepted', 'declined'])
+                  || (existing().status == 'viewing_requested' && incoming().status in ['viewing_confirmed', 'accepted', 'declined'])
+                  || (existing().status == 'viewing_confirmed' && incoming().status in ['accepted', 'declined'])
+                  || (existing().status == 'accepted' && incoming().status in ['completed', 'declined', 'cancelled'])
+                ))
             )
           )
         );
@@ -532,7 +550,9 @@ service cloud.firestore {
       allow create: if isValidId(conversationId) && isVerifiedUser()
         && isValidConversation(incoming())
         && incoming().studentId == request.auth.uid
+        && incoming().studentId != incoming().ownerId
         && exists(/databases/$(database)/documents/hostels/$(incoming().hostelId))
+        && get(/databases/$(database)/documents/hostels/$(incoming().hostelId)).data.ownerId == incoming().ownerId
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
       allow update: if isValidId(conversationId) && isVerifiedUser()
@@ -589,11 +609,13 @@ service cloud.firestore {
       allow list: if existing().moderationStatus == 'approved' || (isSignedIn() && existing().studentId == request.auth.uid) || isAdmin();
       allow create: if isValidId(reviewId) && isVerifiedUser()
         && isValidReview(incoming())
+        && reviewId == incoming().bookingId + '_' + request.auth.uid
         && incoming().studentId == request.auth.uid
         && incoming().moderationStatus == 'pending'
         && incoming().createdAt == request.time
         && exists(/databases/$(database)/documents/bookings/$(incoming().bookingId))
         && get(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.studentId == request.auth.uid
+        && get(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.hostelId == incoming().hostelId
         && get(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.status == 'completed';
       allow update: if isValidId(reviewId) && isAdmin() && isValidReview(incoming()) && incoming().createdAt == existing().createdAt;
       allow delete: if isValidId(reviewId) && isVerifiedUser() && (isAdmin() || existing().studentId == request.auth.uid);

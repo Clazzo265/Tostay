@@ -15,7 +15,7 @@ export const ComparePage: React.FC = () => {
     [hostels, compareIds]
   );
 
-  const rumphiCampus = campuses[0];
+  const defaultCampus = campuses[0];
 
   return (
     <div className="bg-slate-50 min-h-screen py-10 pb-24">
@@ -109,10 +109,11 @@ export const ComparePage: React.FC = () => {
                 <tr>
                   <td className="p-4 font-semibold text-slate-700">Campus Distance</td>
                   {selectedHostels.map((h) => {
+                    const targetCampus = campuses.find((c) => c.id === h.campusId) ?? defaultCampus;
                     const dist =
-                      rumphiCampus && h.hasCoordinates && typeof h.lat === 'number' && typeof h.lng === 'number'
+                      targetCampus && h.hasCoordinates && typeof h.lat === 'number' && typeof h.lng === 'number'
                         ? haversineDistanceKm(
-                            { lat: rumphiCampus.lat, lng: rumphiCampus.lng },
+                            { lat: targetCampus.lat, lng: targetCampus.lng },
                             { lat: h.lat, lng: h.lng }
                           )
                         : null;

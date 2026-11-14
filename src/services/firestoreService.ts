@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -19,6 +20,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
+import { canTransitionBookingStatus, validateBookingDates } from '../lib/hostelUtils';
 import type {
   AppNotification,
   AuditLog,
@@ -536,18 +538,30 @@ export async function updateUserProfileAndPreferences(
 
     const privPayload: Record<string, unknown> = {
       uid,
-      email: email.slice(0, 200),
       updatedAt: serverTimestamp(),
     };
-    if (updates.phone) privPayload.phone = updates.phone.trim().slice(0, 32);
-    if (updates.whatsapp) privPayload.whatsapp = updates.whatsapp.trim().slice(0, 32);
-    if (updates.studentIdNumber) privPayload.studentIdNumber = updates.studentIdNumber.trim().slice(0, 64);
-    if (updates.businessName) privPayload.businessName = updates.businessName.trim().slice(0, 120);
-    if (updates.preferredCampusId) privPayload.preferredCampusId = updates.preferredCampusId.trim().slice(0, 64);
-    if (typeof updates.maxBudgetMwk === 'number') privPayload.maxBudgetMwk = updates.maxBudgetMwk;
-    if (updates.preferredRoomType) privPayload.preferredRoomType = updates.preferredRoomType.trim().slice(0, 40);
+    if (email.trim().length >= 3) {
+      privPayload.email = email.trim().slice(0, 200);
+    }
+    if (updates.phone !== undefined) privPayload.phone = updates.phone.trim().slice(0, 32);
+    if (updates.whatsapp !== undefined) privPayload.whatsapp = updates.whatsapp.trim().slice(0, 32);
+    if (updates.studentIdNumber !== undefined) {
+      privPayload.studentIdNumber = updates.studentIdNumber.trim().slice(0, 64);
+    }
+    if (updates.businessName !== undefined) {
+      privPayload.businessName = updates.businessName.trim().slice(0, 120);
+    }
+    if (updates.preferredCampusId !== undefined) {
+      privPayload.preferredCampusId = updates.preferredCampusId.trim().slice(0, 64);
+    }
+    if (typeof updates.maxBudgetMwk === 'number') {
+      privPayload.maxBudgetMwk = updates.maxBudgetMwk;
+    }
+    if (updates.preferredRoomType !== undefined) {
+      privPayload.preferredRoomType = updates.preferredRoomType.trim().slice(0, 40);
+    }
 
-    batch.set(doc(db, 'users', uid, 'private', 'info'), privPayload, { merge: false });
+    batch.set(doc(db, 'users', uid, 'private', 'info'), privPayload, { merge: true });
     await batch.commit();
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`);
@@ -621,6 +635,14 @@ export async function createBookingRequest(params: {
   totalAmountMwk: number;
   notes?: string;
 }): Promise<string> {
+  if (params.studentId === params.ownerId) {
+    throw new Error('Property owners cannot submit booking requests for their own listings.');
+  }
+  const dateCheck = validateBookingDates(params.checkInDate, params.checkOutDate);
+  if (!dateCheck.valid) {
+    throw new Error(dateCheck.error || 'Invalid booking check-in or check-out dates.');
+  }
+
   try {
     const payload: Record<string, unknown> = {
       studentId: params.studentId,
@@ -655,66 +677,108 @@ export async function createBookingRequest(params: {
 
 export async function updateBookingStatusAsStudent(bookingId: string): Promise<void> {
   try {
-    await updateDoc(doc(db, 'bookings', bookingId), {
-      status: 'cancelled',
-      updatedAt: serverTimestamp(),
+    await runTransaction(db, async (tx) => {
+      const bookingRef = doc(db, 'bookings', bookingId);
+      const bSnap = await tx.get(bookingRef);
+      if (!bSnap.exists()) {
+        throw new Error('Booking request no longer exists.');
+      }
+      const currentStatus = String(bSnap.data().status ?? 'pending') as BookingStatus;
+      if (!canTransitionBookingStatus(currentStatus, 'cancelled', 'student')) {
+        throw new Error(
+          currentStatus === 'accepted'
+            ? 'This reservation is already accepted. Please message the property owner to release the room.'
+            : `Cannot cancel a booking that is already ${currentStatus.replace('_', ' ')}.`
+        );
+      }
+      tx.update(bookingRef, {
+        status: 'cancelled',
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes('Booking request no longer exists') ||
+        err.message.includes('Cannot cancel') ||
+        err.message.includes('already accepted'))
+    ) {
+      throw err;
+    }
     handleFirestoreError(err, OperationType.UPDATE, `bookings/${bookingId}`);
   }
 }
 
 /**
- * Atomic Firestore Transaction: prevents double allocation when Owner accepts a booking.
+ * Atomic Firestore Transaction: enforces state transitions and synchronizes
+ * room/hostel inventory on acceptance or post-acceptance release.
  */
 export async function updateBookingStatusAsOwner(
   booking: Booking,
   nextStatus: BookingStatus
 ): Promise<void> {
   try {
-    if (nextStatus === 'accepted') {
-      await runTransaction(db, async (tx) => {
-        const bookingRef = doc(db, 'bookings', booking.id);
-        const roomRef = doc(db, 'rooms', booking.roomId);
-        const hostelRef = doc(db, 'hostels', booking.hostelId);
+    await runTransaction(db, async (tx) => {
+      const bookingRef = doc(db, 'bookings', booking.id);
+      const roomRef = doc(db, 'rooms', booking.roomId);
+      const hostelRef = doc(db, 'hostels', booking.hostelId);
 
-        const [bSnap, rSnap, hSnap] = await Promise.all([
-          tx.get(bookingRef),
-          tx.get(roomRef),
-          tx.get(hostelRef),
-        ]);
+      const bSnap = await tx.get(bookingRef);
+      if (!bSnap.exists()) throw new Error('Booking no longer exists.');
 
-        if (!bSnap.exists()) throw new Error('Booking no longer exists.');
+      const currentStatus = String(bSnap.data().status ?? 'pending') as BookingStatus;
+      if (!canTransitionBookingStatus(currentStatus, nextStatus, 'owner')) {
+        throw new Error(
+          `Cannot transition booking from ${currentStatus.replace('_', ' ')} to ${nextStatus.replace('_', ' ')}.`
+        );
+      }
+
+      const needsUnitDecrement = nextStatus === 'accepted' && currentStatus !== 'accepted';
+      const needsUnitRestore =
+        currentStatus === 'accepted' && (nextStatus === 'declined' || nextStatus === 'cancelled');
+
+      if (needsUnitDecrement || needsUnitRestore) {
+        const [rSnap, hSnap] = await Promise.all([tx.get(roomRef), tx.get(hostelRef)]);
         if (!rSnap.exists()) throw new Error('Room category no longer exists.');
         if (!hSnap.exists()) throw new Error('Hostel listing no longer exists.');
 
         const currentAvail = Number(rSnap.data().availableUnits ?? 0);
-        if (currentAvail <= 0) {
-          throw new Error('No available units left in this room category. Cannot accept booking.');
-        }
-
+        const totalUnits = Number(rSnap.data().totalUnits ?? currentAvail);
         const hostelAvail = Number(hSnap.data().totalAvailableRooms ?? 0);
 
-        tx.update(roomRef, {
-          availableUnits: currentAvail - 1,
-          updatedAt: serverTimestamp(),
-        });
-        tx.update(hostelRef, {
-          totalAvailableRooms: Math.max(0, hostelAvail - 1),
-          lastAvailabilityConfirmation: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        tx.update(bookingRef, {
-          status: 'accepted',
-          updatedAt: serverTimestamp(),
-        });
-      });
-    } else {
-      await updateDoc(doc(db, 'bookings', booking.id), {
+        if (needsUnitDecrement) {
+          if (currentAvail <= 0) {
+            throw new Error('No available units left in this room category. Cannot accept booking.');
+          }
+          tx.update(roomRef, {
+            availableUnits: currentAvail - 1,
+            updatedAt: serverTimestamp(),
+          });
+          tx.update(hostelRef, {
+            totalAvailableRooms: Math.max(0, hostelAvail - 1),
+            lastAvailabilityConfirmation: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else if (needsUnitRestore) {
+          const restoredAvail = Math.min(totalUnits, currentAvail + 1);
+          const restoredDelta = restoredAvail - currentAvail;
+          tx.update(roomRef, {
+            availableUnits: restoredAvail,
+            updatedAt: serverTimestamp(),
+          });
+          tx.update(hostelRef, {
+            totalAvailableRooms: Math.max(0, hostelAvail + restoredDelta),
+            lastAvailabilityConfirmation: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      tx.update(bookingRef, {
         status: nextStatus,
         updatedAt: serverTimestamp(),
       });
-    }
+    });
 
     await createNotificationRecord({
       userId: booking.studentId,
@@ -724,7 +788,12 @@ export async function updateBookingStatusAsOwner(
       link: '/dashboard/student',
     });
   } catch (err) {
-    if (err instanceof Error && err.message.includes('No available units left')) {
+    if (
+      err instanceof Error &&
+      (err.message.includes('No available units left') ||
+        err.message.includes('Cannot transition booking') ||
+        err.message.includes('no longer exists'))
+    ) {
       throw err;
     }
     handleFirestoreError(err, OperationType.UPDATE, `bookings/${booking.id}`);
@@ -911,8 +980,14 @@ export async function submitCompletedStayReview(params: {
   rating: number;
   comment: string;
 }): Promise<void> {
+  const reviewId = `${params.bookingId}_${params.studentId}`;
+  const reviewRef = doc(db, 'reviews', reviewId);
   try {
-    await addDoc(collection(db, 'reviews'), {
+    const existing = await getDoc(reviewRef);
+    if (existing.exists()) {
+      throw new Error('You have already submitted a review for this completed stay.');
+    }
+    await setDoc(reviewRef, {
       studentId: params.studentId,
       studentName: params.studentName.slice(0, 100),
       hostelId: params.hostelId,
@@ -923,7 +998,10 @@ export async function submitCompletedStayReview(params: {
       createdAt: serverTimestamp(),
     });
   } catch (err) {
-    handleFirestoreError(err, OperationType.CREATE, 'reviews');
+    if (err instanceof Error && err.message.includes('already submitted a review')) {
+      throw err;
+    }
+    handleFirestoreError(err, OperationType.CREATE, `reviews/${reviewId}`);
   }
 }
 
@@ -1038,22 +1116,38 @@ export async function createRoomCategory(params: {
   description?: string;
 }): Promise<string> {
   try {
-    const payload: Record<string, unknown> = {
-      hostelId: params.hostelId,
-      ownerId: params.ownerId,
-      name: params.name.trim().slice(0, 100),
-      category: params.category,
-      priceMwk: params.priceMwk,
-      depositMwk: params.depositMwk,
-      paymentPeriod: params.paymentPeriod,
-      totalUnits: params.totalUnits,
-      availableUnits: params.availableUnits,
-      isPublished: params.isPublished,
-      updatedAt: serverTimestamp(),
-    };
-    if (params.description?.trim()) payload.description = params.description.trim().slice(0, 600);
-    const ref = await addDoc(collection(db, 'rooms'), payload);
-    return ref.id;
+    const roomRef = doc(collection(db, 'rooms'));
+    await runTransaction(db, async (tx) => {
+      const hostelRef = doc(db, 'hostels', params.hostelId);
+      const hSnap = await tx.get(hostelRef);
+      if (!hSnap.exists()) throw new Error('Hostel listing not found.');
+
+      const payload: Record<string, unknown> = {
+        hostelId: params.hostelId,
+        ownerId: params.ownerId,
+        name: params.name.trim().slice(0, 100),
+        category: params.category,
+        priceMwk: params.priceMwk,
+        depositMwk: params.depositMwk,
+        paymentPeriod: params.paymentPeriod,
+        totalUnits: params.totalUnits,
+        availableUnits: params.availableUnits,
+        isPublished: params.isPublished,
+        updatedAt: serverTimestamp(),
+      };
+      if (params.description?.trim()) payload.description = params.description.trim().slice(0, 600);
+      tx.set(roomRef, payload);
+
+      if (params.isPublished && params.availableUnits > 0) {
+        const currentTotal = Number(hSnap.data().totalAvailableRooms ?? 0);
+        tx.update(hostelRef, {
+          totalAvailableRooms: currentTotal + params.availableUnits,
+          lastAvailabilityConfirmation: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
+    return roomRef.id;
   } catch (err) {
     handleFirestoreError(err, OperationType.CREATE, 'rooms');
   }
@@ -1061,9 +1155,34 @@ export async function createRoomCategory(params: {
 
 export async function updateRoomAvailability(roomId: string, availableUnits: number): Promise<void> {
   try {
-    await updateDoc(doc(db, 'rooms', roomId), {
-      availableUnits,
-      updatedAt: serverTimestamp(),
+    await runTransaction(db, async (tx) => {
+      const roomRef = doc(db, 'rooms', roomId);
+      const rSnap = await tx.get(roomRef);
+      if (!rSnap.exists()) throw new Error('Room category no longer exists.');
+
+      const oldAvail = Number(rSnap.data().availableUnits ?? 0);
+      const totalUnits = Number(rSnap.data().totalUnits ?? oldAvail);
+      const nextAvail = Math.max(0, Math.min(totalUnits, availableUnits));
+      const hostelId = String(rSnap.data().hostelId ?? '');
+      const delta = nextAvail - oldAvail;
+
+      if (hostelId && delta !== 0) {
+        const hostelRef = doc(db, 'hostels', hostelId);
+        const hSnap = await tx.get(hostelRef);
+        if (hSnap.exists()) {
+          const currentTotal = Number(hSnap.data().totalAvailableRooms ?? 0);
+          tx.update(hostelRef, {
+            totalAvailableRooms: Math.max(0, currentTotal + delta),
+            lastAvailabilityConfirmation: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      tx.update(roomRef, {
+        availableUnits: nextAvail,
+        updatedAt: serverTimestamp(),
+      });
     });
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, `rooms/${roomId}`);
@@ -1130,16 +1249,25 @@ export async function updateOwnerHostel(
 
     if (updates.listingStatus) {
       payload.listingStatus = updates.listingStatus;
+      if (existing.verificationStatus === 'rejected' && updates.listingStatus === 'pending_review') {
+        payload.verificationStatus = 'pending';
+      }
     }
     if (updates.hasCoordinates && typeof updates.lat === 'number' && typeof updates.lng === 'number') {
       payload.lat = updates.lat;
       payload.lng = updates.lng;
+    } else if (!updates.hasCoordinates) {
+      payload.lat = deleteField();
+      payload.lng = deleteField();
+      payload.entranceLat = deleteField();
+      payload.entranceLng = deleteField();
+      payload.boundaryCoordinates = deleteField();
     }
-    if (typeof updates.entranceLat === 'number' && typeof updates.entranceLng === 'number') {
+    if (updates.hasCoordinates && typeof updates.entranceLat === 'number' && typeof updates.entranceLng === 'number') {
       payload.entranceLat = updates.entranceLat;
       payload.entranceLng = updates.entranceLng;
     }
-    if (updates.boundaryCoordinates && updates.boundaryCoordinates.length > 0) {
+    if (updates.hasCoordinates && updates.boundaryCoordinates && updates.boundaryCoordinates.length > 0) {
       payload.boundaryCoordinates = updates.boundaryCoordinates.slice(0, 25);
     }
     if (updates.houseRules?.trim()) payload.houseRules = updates.houseRules.trim().slice(0, 1500);
@@ -1270,7 +1398,7 @@ export async function adminVerifyHostel(params: {
 
     const updateData: Record<string, unknown> = {
       verificationStatus: params.approve ? 'verified' : 'rejected',
-      listingStatus: params.approve ? 'active' : 'suspended',
+      listingStatus: params.approve ? 'active' : 'draft',
       locationStatus: params.locationStatus,
       updatedAt: serverTimestamp(),
     };

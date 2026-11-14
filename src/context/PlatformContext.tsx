@@ -162,11 +162,19 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
       const saved = favoriteHostelIds.has(hostelId);
-      await toggleFavoriteHostel(firebaseUser.uid, hostelId, saved);
-      pushToast({
-        title: saved ? 'Removed from saved hostels' : 'Saved to your shortlist',
-        variant: 'success',
-      });
+      try {
+        await toggleFavoriteHostel(firebaseUser.uid, hostelId, saved);
+        pushToast({
+          title: saved ? 'Removed from saved hostels' : 'Saved to your shortlist',
+          variant: 'success',
+        });
+      } catch (err) {
+        pushToast({
+          title: 'Could not update saved shortlist',
+          description: err instanceof Error ? err.message : 'Please try again.',
+          variant: 'error',
+        });
+      }
     },
     [firebaseUser, favoriteHostelIds, pushToast]
   );

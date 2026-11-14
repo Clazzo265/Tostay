@@ -325,7 +325,7 @@ export const StudentDashboardPage: React.FC = () => {
                     </p>
                     {b.notes && <p className="text-xs text-slate-500 mt-1">Notes: {b.notes}</p>}
                   </div>
-                  {!['declined', 'cancelled', 'completed'].includes(b.status) && (
+                  {['pending', 'under_review', 'viewing_requested', 'viewing_confirmed'].includes(b.status) && (
                     <button
                       type="button"
                       onClick={() => setCancelBookingId(b.id)}
@@ -333,6 +333,11 @@ export const StudentDashboardPage: React.FC = () => {
                     >
                       Cancel Request
                     </button>
+                  )}
+                  {b.status === 'accepted' && (
+                    <span className="text-xs font-medium text-emerald-700 shrink-0">
+                      Room reserved — message owner to release
+                    </span>
                   )}
                 </div>
               ))
@@ -499,7 +504,15 @@ export const StudentDashboardPage: React.FC = () => {
                   {!n.read && (
                     <button
                       type="button"
-                      onClick={() => void markNotificationRead(n.id)}
+                      onClick={() =>
+                        void markNotificationRead(n.id).catch((err) =>
+                          pushToast({
+                            title: 'Could not mark notification read',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        )
+                      }
                       className="text-xs font-semibold text-blue-700 hover:underline shrink-0"
                     >
                       Mark read

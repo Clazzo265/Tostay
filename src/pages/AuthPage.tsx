@@ -20,6 +20,8 @@ export const AuthPage: React.FC = () => {
         navigate('/admin', { replace: true });
       } else if (userPublic.role === 'owner') {
         navigate('/dashboard/owner', { replace: true });
+      } else if (userPublic.role === 'university') {
+        navigate('/university', { replace: true });
       } else {
         navigate('/dashboard/student', { replace: true });
       }

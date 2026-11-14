@@ -108,4 +108,11 @@ test('Firestore rules file preserves mandatory security invariants', () => {
   assert.ok(rules.includes('match /private/{docId}'));
   assert.ok(rules.includes('match /auditLogs/{logId}'));
   assert.ok(rules.includes('affectedKeys().hasOnly'));
+  // Milestone 1 hardening checks
+  assert.ok(rules.includes('incoming().studentId != incoming().ownerId'));
+  assert.ok(rules.includes('data.availableUnits > 0'));
+  assert.ok(rules.includes('data.priceMwk'));
+  assert.ok(rules.includes("reviewId == incoming().bookingId + '_' + request.auth.uid"));
+  assert.ok(rules.includes('data.hostelId == incoming().hostelId'));
+  assert.ok(rules.includes('data.ownerId == incoming().ownerId'));
 });

@@ -96,6 +96,24 @@ const TERMINAL_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
   'completed',
 ]);
 
+const STUDENT_CANCELLABLE_STATUSES: ReadonlySet<BookingStatus> = new Set([
+  'pending',
+  'under_review',
+  'viewing_requested',
+  'viewing_confirmed',
+]);
+
+const OWNER_ALLOWED_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ['under_review', 'viewing_requested', 'viewing_confirmed', 'accepted', 'declined'],
+  under_review: ['viewing_requested', 'viewing_confirmed', 'accepted', 'declined'],
+  viewing_requested: ['viewing_confirmed', 'accepted', 'declined'],
+  viewing_confirmed: ['accepted', 'declined'],
+  accepted: ['completed', 'declined', 'cancelled'],
+  declined: [],
+  cancelled: [],
+  completed: [],
+};
+
 export function canTransitionBookingStatus(
   current: BookingStatus,
   next: BookingStatus,
@@ -103,24 +121,53 @@ export function canTransitionBookingStatus(
 ): boolean {
   if (actor === 'admin') return true;
   if (TERMINAL_BOOKING_STATUSES.has(current)) return false;
+  if (current === next) return false;
 
   if (actor === 'student') {
-    return next === 'cancelled';
+    return next === 'cancelled' && STUDENT_CANCELLABLE_STATUSES.has(current);
   }
 
   if (actor === 'owner') {
-    const allowed: BookingStatus[] = [
-      'under_review',
-      'viewing_requested',
-      'viewing_confirmed',
-      'accepted',
-      'declined',
-      'completed',
-    ];
-    return allowed.includes(next);
+    return OWNER_ALLOWED_TRANSITIONS[current].includes(next);
   }
 
   return false;
+}
+
+export function doDatesOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string
+): boolean {
+  const s1 = Date.parse(aStart);
+  const e1 = Date.parse(aEnd);
+  const s2 = Date.parse(bStart);
+  const e2 = Date.parse(bEnd);
+  if ([s1, e1, s2, e2].some((v) => Number.isNaN(v))) return false;
+  return s1 < e2 && s2 < e1;
+}
+
+export function calculateHostelInventoryRollup(rooms: Room[]): {
+  totalAvailableRooms: number;
+  minPriceMwk: number | null;
+  maxPriceMwk: number | null;
+} {
+  const published = rooms.filter((r) => r.isPublished);
+  const source = published.length > 0 ? published : rooms;
+  if (source.length === 0) {
+    return { totalAvailableRooms: 0, minPriceMwk: null, maxPriceMwk: null };
+  }
+  const totalAvailableRooms = source.reduce(
+    (sum, r) => sum + Math.max(0, Math.min(r.totalUnits, r.availableUnits)),
+    0
+  );
+  const prices = source.map((r) => r.priceMwk).filter((p) => Number.isFinite(p) && p >= 0);
+  return {
+    totalAvailableRooms,
+    minPriceMwk: prices.length > 0 ? Math.min(...prices) : null,
+    maxPriceMwk: prices.length > 0 ? Math.max(...prices) : null,
+  };
 }
 
 export function filterAndSortHostels(

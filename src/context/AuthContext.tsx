@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin =
     Boolean(firebaseUser?.emailVerified) &&
-    (firebaseUser?.email === BOOTSTRAPPED_ADMIN_EMAIL || isAdminDoc || userPublic?.role === 'admin');
+    (firebaseUser?.email === BOOTSTRAPPED_ADMIN_EMAIL || isAdminDoc);
 
   return (
     <AuthContext.Provider

@@ -832,12 +832,20 @@ export const OwnerDashboardPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() =>
-                              void confirmHostelAvailability(h.id, h.totalAvailableRooms).then(() =>
-                                pushToast({
-                                  title: 'Availability timestamp refreshed',
-                                  variant: 'success',
-                                })
-                              )
+                              void confirmHostelAvailability(h.id, h.totalAvailableRooms)
+                                .then(() =>
+                                  pushToast({
+                                    title: 'Availability timestamp refreshed',
+                                    variant: 'success',
+                                  })
+                                )
+                                .catch((err) =>
+                                  pushToast({
+                                    title: 'Could not confirm availability',
+                                    description: err instanceof Error ? err.message : 'Please try again',
+                                    variant: 'error',
+                                  })
+                                )
                             }
                             className="min-h-[40px] px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-1.5"
                           >
@@ -885,6 +893,12 @@ export const OwnerDashboardPage: React.FC = () => {
                                     void updateRoomAvailability(
                                       rm.id,
                                       Math.max(0, rm.availableUnits - 1)
+                                    ).catch((err) =>
+                                      pushToast({
+                                        title: 'Could not update room availability',
+                                        description: err instanceof Error ? err.message : 'Please try again',
+                                        variant: 'error',
+                                      })
                                     )
                                   }
                                   className="w-7 h-7 rounded border border-slate-300 bg-white text-xs font-bold"
@@ -898,6 +912,12 @@ export const OwnerDashboardPage: React.FC = () => {
                                     void updateRoomAvailability(
                                       rm.id,
                                       Math.min(rm.totalUnits, rm.availableUnits + 1)
+                                    ).catch((err) =>
+                                      pushToast({
+                                        title: 'Could not update room availability',
+                                        description: err instanceof Error ? err.message : 'Please try again',
+                                        variant: 'error',
+                                      })
                                     )
                                   }
                                   className="w-7 h-7 rounded border border-slate-300 bg-white text-xs font-bold"
@@ -976,9 +996,17 @@ export const OwnerDashboardPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            void updateBookingStatusAsOwner(b, 'completed').then(() =>
-                              pushToast({ title: 'Booking marked completed', variant: 'success' })
-                            )
+                            void updateBookingStatusAsOwner(b, 'completed')
+                              .then(() =>
+                                pushToast({ title: 'Booking marked completed', variant: 'success' })
+                              )
+                              .catch((err) =>
+                                pushToast({
+                                  title: 'Could not complete booking',
+                                  description: err instanceof Error ? err.message : 'Please try again',
+                                  variant: 'error',
+                                })
+                              )
                           }
                           className="min-h-[40px] px-3.5 rounded-lg bg-[#0A192F] text-white text-xs font-semibold"
                         >
@@ -988,13 +1016,27 @@ export const OwnerDashboardPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() =>
-                          void updateBookingStatusAsOwner(b, 'declined').then(() =>
-                            pushToast({ title: 'Booking declined', variant: 'info' })
-                          )
+                          void updateBookingStatusAsOwner(b, 'declined')
+                            .then(() =>
+                              pushToast({
+                                title:
+                                  b.status === 'accepted'
+                                    ? 'Reservation released & room unit restored'
+                                    : 'Booking declined',
+                                variant: 'info',
+                              })
+                            )
+                            .catch((err) =>
+                              pushToast({
+                                title: 'Could not decline booking',
+                                description: err instanceof Error ? err.message : 'Please try again',
+                                variant: 'error',
+                              })
+                            )
                         }
                         className="min-h-[40px] px-3.5 rounded-lg border border-rose-300 text-rose-700 text-xs font-semibold hover:bg-rose-50"
                       >
-                        Decline
+                        {b.status === 'accepted' ? 'Cancel & Release Unit' : 'Decline'}
                       </button>
                     </div>
                   )}
@@ -1049,7 +1091,15 @@ export const OwnerDashboardPage: React.FC = () => {
                           enq,
                           enquiryReplies[enq.id] || 'Confirmed — please visit during daytime hours.',
                           enq.type === 'viewing' ? 'scheduled' : 'responded'
-                        ).then(() => pushToast({ title: 'Reply sent to student', variant: 'success' }))
+                        )
+                          .then(() => pushToast({ title: 'Reply sent to student', variant: 'success' }))
+                          .catch((err) =>
+                            pushToast({
+                              title: 'Could not send enquiry reply',
+                              description: err instanceof Error ? err.message : 'Please try again',
+                              variant: 'error',
+                            })
+                          )
                       }
                       className="min-h-[40px] px-4 rounded-lg bg-[#0A192F] text-white text-xs font-semibold"
                     >
@@ -1118,9 +1168,15 @@ export const OwnerDashboardPage: React.FC = () => {
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (!replyText.trim()) return;
-                      void sendConversationMessage(selectedConvo, firebaseUser.uid, replyText).then(
-                        () => setReplyText('')
-                      );
+                      void sendConversationMessage(selectedConvo, firebaseUser.uid, replyText)
+                        .then(() => setReplyText(''))
+                        .catch((err) =>
+                          pushToast({
+                            title: 'Message failed to send',
+                            description: err instanceof Error ? err.message : 'Please try again',
+                            variant: 'error',
+                          })
+                        );
                     }}
                     className="p-3 border-t border-slate-200 flex items-center gap-2"
                   >

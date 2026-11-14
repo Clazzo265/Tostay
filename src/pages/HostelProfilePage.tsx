@@ -113,8 +113,9 @@ export const HostelProfilePage: React.FC = () => {
   }, [hostel?.id, recordRecentView]);
 
   useEffect(() => {
-    if (hostelRooms.length > 0 && !selectedRoomId) {
-      setSelectedRoomId(hostelRooms[0].id);
+    const firstAvailable = hostelRooms.find((r) => r.availableUnits > 0) ?? hostelRooms[0];
+    if (firstAvailable && (!selectedRoomId || !hostelRooms.some((r) => r.id === selectedRoomId))) {
+      setSelectedRoomId(firstAvailable.id);
     }
   }, [hostelRooms, selectedRoomId]);
 
@@ -164,6 +165,8 @@ export const HostelProfilePage: React.FC = () => {
         )
       : null;
 
+  const isOwnListing = Boolean(firebaseUser && firebaseUser.uid === hostel.ownerId);
+  const hasBookableRooms = hostelRooms.some((r) => r.availableUnits > 0);
   const completedBookingForHostel = userBookings.find(
     (b) => b.hostelId === hostel.id && b.status === 'completed'
   );
@@ -184,9 +187,17 @@ export const HostelProfilePage: React.FC = () => {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireSignedInLiveListing('Submit Booking Request') || !firebaseUser) return;
+    if (isOwnListing) {
+      pushToast({ title: 'Owners cannot book their own property', variant: 'error' });
+      return;
+    }
     const room = hostelRooms.find((r) => r.id === selectedRoomId);
     if (!room) {
       pushToast({ title: 'Select a room category first', variant: 'error' });
+      return;
+    }
+    if (room.availableUnits <= 0) {
+      pushToast({ title: 'Selected room category has no open units left', variant: 'error' });
       return;
     }
     const dateCheck = validateBookingDates(checkInDate, checkOutDate);
@@ -753,12 +764,19 @@ export const HostelProfilePage: React.FC = () => {
               <div className="space-y-2.5">
                 <button
                   type="button"
+                  disabled={!hasBookableRooms || isOwnListing}
                   onClick={() => {
                     if (requireSignedInLiveListing('Request Booking')) setActiveModal('booking');
                   }}
-                  className="w-full min-h-[46px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+                  className="w-full min-h-[46px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Request Booking
+                  {isOwnListing
+                    ? 'Your Own Listing'
+                    : hasBookableRooms
+                    ? 'Request Booking'
+                    : hostelRooms.length === 0
+                    ? 'Contact Owner for Room Openings'
+                    : 'No Open Units Currently'}
                 </button>
                 <button
                   type="button"
