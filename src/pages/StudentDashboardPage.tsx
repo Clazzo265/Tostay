@@ -76,16 +76,16 @@ export const StudentDashboardPage: React.FC = () => {
     const u2 = subscribeUserEnquiries(firebaseUser.uid, 'studentId', setEnquiries);
     const u3 = subscribeUserConversations(firebaseUser.uid, 'studentId', (list) => {
       setConversations(list);
-      if (list.length > 0 && !selectedConvoId) {
-        setSelectedConvoId(list[0].id);
-      }
+      setSelectedConvoId((prev) =>
+        prev && list.some((c) => c.id === prev) ? prev : list[0]?.id ?? null
+      );
     });
     return () => {
       u1();
       u2();
       u3();
     };
-  }, [firebaseUser, selectedConvoId]);
+  }, [firebaseUser]);
 
   useEffect(() => {
     if (!selectedConvoId) {
@@ -218,6 +218,16 @@ export const StudentDashboardPage: React.FC = () => {
             Find More Hostels
           </Link>
         </div>
+
+        {userPublic?.accountStatus === 'suspended' && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          >
+            <strong>Account suspended:</strong> Your ToStay account has been suspended by an
+            administrator. Creating bookings, enquiries, or messages is disabled until reinstated.
+          </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 border-b border-slate-200">
@@ -590,7 +600,7 @@ export const StudentDashboardPage: React.FC = () => {
                   type="text"
                   value={universityName}
                   onChange={(e) => setUniversityName(e.target.value)}
-                  placeholder="Rumphi University Campus"
+                  placeholder="University of Livingstonia, Rumphi Campus"
                   className="w-full min-h-[42px] px-3 rounded-lg border border-slate-300 text-sm"
                 />
               </div>

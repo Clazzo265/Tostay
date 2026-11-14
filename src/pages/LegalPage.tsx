@@ -70,10 +70,10 @@ export const LegalPage: React.FC<LegalPageProps> = ({ section }) => {
                 Support & Safe Booking Guidance
               </h1>
               <p className="text-sm text-slate-700 leading-relaxed">
-                <strong>For Students in Rumphi:</strong> Always inspect a property&apos;s Location
-                Verification status and schedule a physical viewing through ToStay before paying a
-                security deposit. Report any suspicious price changes or misleading photos using the
-                Report button on any property profile.
+                <strong>For University of Livingstonia, Rumphi Campus Students:</strong> Always inspect a
+                property&apos;s Location Verification status and schedule a physical viewing through
+                ToStay before paying a security deposit. Report any suspicious price changes or
+                misleading photos using the Report button on any property profile.
               </p>
               <p className="text-sm text-slate-700 leading-relaxed">
                 <strong>For Hostel Owners & University Partners:</strong> Submit properties via the{' '}

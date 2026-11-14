@@ -28,6 +28,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    function isActiveAccount() {
+      return isVerifiedUser() && (
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'active'
+      );
+    }
+
     function isAdmin() {
       return isVerifiedUser() && (
         request.auth.token.email == 'aceclazzo360@gmail.com' ||
@@ -320,6 +327,7 @@ service cloud.firestore {
         && (
           isAdmin() || (
             request.auth.uid == userId
+            && existing().accountStatus == 'active'
             && incoming().uid == existing().uid
             && incoming().createdAt == existing().createdAt
             && incoming().accountStatus == existing().accountStatus
@@ -375,7 +383,7 @@ service cloud.firestore {
       allow list: if (existing().listingStatus == 'active' && existing().verificationStatus == 'verified')
         || (isSignedIn() && existing().ownerId == request.auth.uid)
         || isAdmin();
-      allow create: if isValidId(hostelId) && isVerifiedUser()
+      allow create: if isValidId(hostelId) && isActiveAccount()
         && isValidHostel(incoming())
         && incoming().ownerId == request.auth.uid
         && exists(/databases/$(database)/documents/campuses/$(incoming().campusId))
@@ -394,7 +402,8 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin() || (
-            existing().ownerId == request.auth.uid
+            isActiveAccount()
+            && existing().ownerId == request.auth.uid
             && (
               incoming().verificationStatus == existing().verificationStatus
               || (existing().verificationStatus == 'rejected' && incoming().verificationStatus == 'pending' && incoming().listingStatus == 'pending_review')
@@ -435,7 +444,7 @@ service cloud.firestore {
       allow list: if existing().isPublished == true
         || (isSignedIn() && existing().ownerId == request.auth.uid)
         || isAdmin();
-      allow create: if isValidId(roomId) && isVerifiedUser()
+      allow create: if isValidId(roomId) && isActiveAccount()
         && isValidRoom(incoming())
         && incoming().ownerId == request.auth.uid
         && exists(/databases/$(database)/documents/hostels/$(incoming().hostelId))
@@ -448,7 +457,7 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin()
-          || (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'priceMwk', 'depositMwk', 'paymentPeriod', 'totalUnits', 'availableUnits', 'isPublished', 'description', 'updatedAt']))
+          || (isActiveAccount() && existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'priceMwk', 'depositMwk', 'paymentPeriod', 'totalUnits', 'availableUnits', 'isPublished', 'description', 'updatedAt']))
         );
       allow delete: if isValidId(roomId) && isVerifiedUser() && (isAdmin() || existing().ownerId == request.auth.uid);
     }
@@ -459,7 +468,7 @@ service cloud.firestore {
         isAdmin() || (resource != null && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid))
       );
       allow list: if isSignedIn() && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin());
-      allow create: if isValidId(bookingId) && isVerifiedUser()
+      allow create: if isValidId(bookingId) && isActiveAccount()
         && isValidBooking(incoming())
         && incoming().studentId == request.auth.uid
         && incoming().studentId != incoming().ownerId
@@ -486,6 +495,7 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin() || (
+            isActiveAccount() &&
             // Terminal state lock and strict state transition graph for non-admins
             !(existing().status in ['declined', 'cancelled', 'completed']) && (
               // Action: Student cancels pre-acceptance booking
@@ -516,7 +526,7 @@ service cloud.firestore {
         isAdmin() || (resource != null && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid))
       );
       allow list: if isSignedIn() && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin());
-      allow create: if isValidId(enquiryId) && isVerifiedUser()
+      allow create: if isValidId(enquiryId) && isActiveAccount()
         && isValidEnquiry(incoming())
         && incoming().studentId == request.auth.uid
         && incoming().status == 'open'
@@ -533,8 +543,8 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && (
           isAdmin()
-          || (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'ownerReply', 'updatedAt']))
-          || (existing().studentId == request.auth.uid && incoming().status == 'closed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          || (isActiveAccount() && existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'ownerReply', 'updatedAt']))
+          || (isActiveAccount() && existing().studentId == request.auth.uid && incoming().status == 'closed' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
         );
       allow delete: if isAdmin() && isValidId(enquiryId);
     }
@@ -547,7 +557,7 @@ service cloud.firestore {
         || (resource != null && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid))
       );
       allow list: if isSignedIn() && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin());
-      allow create: if isValidId(conversationId) && isVerifiedUser()
+      allow create: if isValidId(conversationId) && isActiveAccount()
         && isValidConversation(incoming())
         && incoming().studentId == request.auth.uid
         && incoming().studentId != incoming().ownerId
@@ -557,7 +567,7 @@ service cloud.firestore {
         && incoming().updatedAt == request.time;
       allow update: if isValidId(conversationId) && isVerifiedUser()
         && isValidConversation(incoming())
-        && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid || isAdmin())
+        && ((isActiveAccount() && (existing().studentId == request.auth.uid || existing().ownerId == request.auth.uid)) || isAdmin())
         && incoming().studentId == existing().studentId
         && incoming().ownerId == existing().ownerId
         && incoming().hostelId == existing().hostelId
@@ -577,7 +587,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/conversations/$(conversationId)).data.studentId == request.auth.uid ||
           get(/databases/$(database)/documents/conversations/$(conversationId)).data.ownerId == request.auth.uid
         );
-        allow create: if isValidId(conversationId) && isValidId(messageId) && isVerifiedUser()
+        allow create: if isValidId(conversationId) && isValidId(messageId) && isActiveAccount()
           && isValidMessage(incoming())
           && incoming().senderId == request.auth.uid
           && incoming().createdAt == request.time
@@ -607,7 +617,7 @@ service cloud.firestore {
         || (resource != null && (existing().moderationStatus == 'approved' || (isSignedIn() && existing().studentId == request.auth.uid)))
       );
       allow list: if existing().moderationStatus == 'approved' || (isSignedIn() && existing().studentId == request.auth.uid) || isAdmin();
-      allow create: if isValidId(reviewId) && isVerifiedUser()
+      allow create: if isValidId(reviewId) && isActiveAccount()
         && isValidReview(incoming())
         && reviewId == incoming().bookingId + '_' + request.auth.uid
         && incoming().studentId == request.auth.uid
@@ -659,7 +669,7 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow get: if isValidId(reportId) && isSignedIn() && (isAdmin() || (resource != null && existing().reporterId == request.auth.uid));
       allow list: if isSignedIn() && (existing().reporterId == request.auth.uid || isAdmin());
-      allow create: if isValidId(reportId) && isVerifiedUser()
+      allow create: if isValidId(reportId) && isActiveAccount()
         && isValidReport(incoming())
         && incoming().reporterId == request.auth.uid
         && incoming().status == 'open'

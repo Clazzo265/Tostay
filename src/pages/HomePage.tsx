@@ -21,8 +21,8 @@ import { ROOM_CATEGORY_LABELS, type RoomCategoryType } from '../types/domain';
 
 const FAQS = [
   {
-    q: 'How does ToStay verify hostel locations in Rumphi?',
-    a: 'Owners submit GPS coordinates and plot boundaries via satellite imagery. Before a listing receives Verified Location status, a ToStay administrator inspects the satellite footprint, entrance gate pin, and address against the Rumphi campus corridor.',
+    q: 'How does ToStay verify hostel locations near University of Livingstonia, Rumphi Campus?',
+    a: 'Owners submit GPS coordinates and plot boundaries via satellite imagery. Before a listing receives Verified Location status, a ToStay administrator inspects the satellite footprint, entrance gate pin, and address against the University of Livingstonia, Rumphi Campus corridor.',
   },
   {
     q: 'Can I browse hostels before creating an account?',
@@ -39,7 +39,7 @@ const FAQS = [
 ];
 
 export const HomePage: React.FC = () => {
-  const { campuses, hostels, rooms, systemSettings, isCatalogLoading } = usePlatform();
+  const { campuses, hostels, rooms, systemSettings, isCatalogLoading, catalogError } = usePlatform();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -102,7 +102,7 @@ export const HomePage: React.FC = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-24">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-widest text-sky-400">
-              Rumphi University Accommodation Ecosystem · Malawi
+              University of Livingstonia · Rumphi Campus, Malawi
             </p>
             <h1 className="mt-3 font-display text-3xl sm:text-5xl font-bold tracking-tight text-white text-balance leading-[1.12]">
               Your next home is closer than you think.
@@ -242,6 +242,12 @@ export const HomePage: React.FC = () => {
             <SkeletonCard />
             <SkeletonCard />
           </div>
+        ) : catalogError ? (
+          <EmptyState
+            icon={<Building2 className="w-6 h-6 text-rose-600" />}
+            title="Unable to load accommodation directory"
+            description={catalogError}
+          />
         ) : featuredHostels.length === 0 ? (
           <EmptyState
             icon={<Building2 className="w-6 h-6" />}

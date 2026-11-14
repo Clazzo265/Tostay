@@ -115,4 +115,6 @@ test('Firestore rules file preserves mandatory security invariants', () => {
   assert.ok(rules.includes("reviewId == incoming().bookingId + '_' + request.auth.uid"));
   assert.ok(rules.includes('data.hostelId == incoming().hostelId'));
   assert.ok(rules.includes('data.ownerId == incoming().ownerId'));
+  assert.ok(rules.includes('function isActiveAccount()'));
+  assert.ok(rules.includes("accountStatus == 'active'"));
 });

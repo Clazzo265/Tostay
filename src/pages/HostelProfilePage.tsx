@@ -22,6 +22,7 @@ import { usePlatform } from '../context/PlatformContext';
 import {
   formatMwk,
   formatRelativeTime,
+  hasOverlappingActiveBooking,
   haversineDistanceKm,
   isAvailabilityStale,
   validateBookingDates,
@@ -107,6 +108,7 @@ export const HostelProfilePage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    setActivePhotoIndex(0);
     if (hostel?.id) {
       recordRecentView(hostel.id);
     }
@@ -181,6 +183,14 @@ export const HostelProfilePage: React.FC = () => {
       navigate('/auth');
       return false;
     }
+    if (userPublic?.accountStatus === 'suspended') {
+      pushToast({
+        title: 'Account suspended',
+        description: 'Your account is currently suspended and cannot submit requests.',
+        variant: 'error',
+      });
+      return false;
+    }
     return true;
   };
 
@@ -203,6 +213,14 @@ export const HostelProfilePage: React.FC = () => {
     const dateCheck = validateBookingDates(checkInDate, checkOutDate);
     if (!dateCheck.valid) {
       pushToast({ title: dateCheck.error || 'Invalid dates', variant: 'error' });
+      return;
+    }
+    if (hasOverlappingActiveBooking(userBookings, room.id, checkInDate, checkOutDate)) {
+      pushToast({
+        title: 'Duplicate active booking detected',
+        description: 'You already have an active request for this room covering overlapping dates.',
+        variant: 'error',
+      });
       return;
     }
 
@@ -243,6 +261,10 @@ export const HostelProfilePage: React.FC = () => {
   const handleViewingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireSignedInLiveListing('Request Viewing') || !firebaseUser) return;
+    if (isOwnListing) {
+      pushToast({ title: 'Owners cannot request a viewing on their own listing', variant: 'error' });
+      return;
+    }
     const parsed = enquirySchema.safeParse({
       type: 'viewing',
       subject: `Physical Viewing Request — ${hostel.name}`,
@@ -288,6 +310,10 @@ export const HostelProfilePage: React.FC = () => {
   const handleMessageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireSignedInLiveListing('Message Owner') || !firebaseUser) return;
+    if (isOwnListing) {
+      pushToast({ title: 'Owners cannot message themselves on their own listing', variant: 'error' });
+      return;
+    }
     if (directMessage.trim().length < 2) {
       pushToast({ title: 'Enter a message for the property owner', variant: 'error' });
       return;
@@ -835,8 +861,9 @@ export const HostelProfilePage: React.FC = () => {
                 className="w-full min-h-[42px] px-3 rounded-lg border border-slate-300 text-sm bg-white"
               >
                 {hostelRooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} — {formatMwk(r.priceMwk, r.paymentPeriod)} ({r.availableUnits} open)
+                  <option key={r.id} value={r.id} disabled={r.availableUnits <= 0}>
+                    {r.name} — {formatMwk(r.priceMwk, r.paymentPeriod)} (
+                    {r.availableUnits > 0 ? `${r.availableUnits} open` : 'Full'})
                   </option>
                 ))}
               </select>

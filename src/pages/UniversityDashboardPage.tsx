@@ -148,12 +148,12 @@ export const UniversityDashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto min-w-0">
             <select
               aria-label="Select campus"
               value={selectedCampusId}
               onChange={(e) => setSelectedCampusId(e.target.value)}
-              className="min-h-[42px] px-3 rounded-lg bg-slate-900 border border-slate-700 text-sm text-white"
+              className="w-full sm:w-auto max-w-full min-w-0 min-h-[42px] px-3 rounded-lg bg-slate-900 border border-slate-700 text-sm text-white"
             >
               {campuses.map((c) => (
                 <option key={c.id} value={c.id}>

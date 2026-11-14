@@ -84,7 +84,11 @@ export const AdminDashboardPage: React.FC = () => {
       setAuditLogs(snap.auditLogs);
       setSubscriptions(snap.subscriptions);
     } catch (err) {
-      console.warn('Admin snapshot load info:', err);
+      pushToast({
+        title: 'Could not load admin records',
+        description: err instanceof Error ? err.message : 'Please check permissions and retry.',
+        variant: 'error',
+      });
     }
   };
 
@@ -105,8 +109,12 @@ export const AdminDashboardPage: React.FC = () => {
     setDidAutoInit(true);
     void initializeCampusAndSettings(firebaseUser.uid)
       .then(() => loadSnapshot())
-      .catch(() => {
-        // Error surfaced cleanly via manual Initialize button if needed
+      .catch((err) => {
+        pushToast({
+          title: 'Campus defaults need manual initialization',
+          description: err instanceof Error ? err.message : 'Click Initialize Rumphi Campus & Defaults.',
+          variant: 'error',
+        });
       });
   }, [isAdmin, firebaseUser, hasLiveCampuses, didAutoInit]);
 

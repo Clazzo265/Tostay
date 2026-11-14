@@ -42,6 +42,7 @@ interface PlatformContextValue {
   recentlyViewedIds: string[];
   systemSettings: SystemSettings;
   isCatalogLoading: boolean;
+  catalogError: string | null;
   toasts: ToastMessage[];
   pushToast: (toast: Omit<ToastMessage, 'id'>) => void;
   dismissToast: (id: string) => void;
@@ -66,6 +67,7 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SYSTEM_SETTINGS);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const [compareIds, setCompareIds] = useState<string[]>(() => {
@@ -99,12 +101,27 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   useEffect(() => {
-    const unsubCampuses = subscribePublicCampuses((list) => setLiveCampuses(list));
-    const unsubHostels = subscribeApprovedHostels((list) => {
-      setLiveHostels(list);
+    const handleCatalogError = (err: Error) => {
+      setCatalogError(err.message || 'Unable to load live accommodation directory.');
       setIsCatalogLoading(false);
-    });
-    const unsubRooms = subscribePublishedRooms((list) => setLiveRooms(list));
+    };
+
+    const unsubCampuses = subscribePublicCampuses(
+      (list) => setLiveCampuses(list),
+      handleCatalogError
+    );
+    const unsubHostels = subscribeApprovedHostels(
+      (list) => {
+        setLiveHostels(list);
+        setCatalogError(null);
+        setIsCatalogLoading(false);
+      },
+      handleCatalogError
+    );
+    const unsubRooms = subscribePublishedRooms(
+      (list) => setLiveRooms(list),
+      handleCatalogError
+    );
     const unsubSettings = subscribeSystemSettings((s) => setSystemSettings(s));
 
     const timer = setTimeout(() => setIsCatalogLoading(false), 1200);
@@ -242,6 +259,7 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         recentlyViewedIds,
         systemSettings,
         isCatalogLoading,
+        catalogError,
         toasts,
         pushToast,
         dismissToast,

@@ -18,8 +18,16 @@ import {
 const PAGE_SIZE = 6;
 
 export const ExplorePage: React.FC = () => {
-  const { campuses, hostels, rooms, compareIds, clearCompare, systemSettings, isCatalogLoading } =
-    usePlatform();
+  const {
+    campuses,
+    hostels,
+    rooms,
+    compareIds,
+    clearCompare,
+    systemSettings,
+    isCatalogLoading,
+    catalogError,
+  } = usePlatform();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
@@ -414,6 +422,11 @@ export const ExplorePage: React.FC = () => {
               <SkeletonCard />
               <SkeletonCard />
             </div>
+          ) : catalogError ? (
+            <EmptyState
+              title="Unable to load verified hostels"
+              description={catalogError}
+            />
           ) : hostels.length === 0 ? (
             <EmptyState
               title="No verified hostels published yet"

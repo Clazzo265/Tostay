@@ -7,6 +7,7 @@ import {
   filterAndSortHostels,
   formatMwk,
   getPolygonCentroid,
+  hasOverlappingActiveBooking,
   haversineDistanceKm,
   isAvailabilityStale,
   validateBookingDates,
@@ -56,9 +57,55 @@ test('canTransitionBookingStatus enforces strict state graph and actor permissio
   assert.equal(canTransitionBookingStatus('completed', 'cancelled', 'admin'), true);
 });
 
-test('doDatesOverlap and calculateHostelInventoryRollup validate booking overlap and room rollups', () => {
+test('doDatesOverlap and hasOverlappingActiveBooking validate booking overlap and room rollups', () => {
   assert.equal(doDatesOverlap('2026-09-01', '2026-12-01', '2026-11-01', '2027-01-01'), true);
   assert.equal(doDatesOverlap('2026-09-01', '2026-10-01', '2026-10-01', '2026-12-01'), false);
+
+  assert.equal(
+    hasOverlappingActiveBooking(
+      [
+        {
+          roomId: 'r1',
+          status: 'pending',
+          checkInDate: '2026-09-01',
+          checkOutDate: '2026-12-01',
+        },
+        {
+          roomId: 'r2',
+          status: 'accepted',
+          checkInDate: '2026-09-01',
+          checkOutDate: '2026-12-01',
+        },
+        {
+          roomId: 'r1',
+          status: 'cancelled',
+          checkInDate: '2026-09-01',
+          checkOutDate: '2026-12-01',
+        },
+      ],
+      'r1',
+      '2026-10-01',
+      '2026-12-15'
+    ),
+    true
+  );
+
+  assert.equal(
+    hasOverlappingActiveBooking(
+      [
+        {
+          roomId: 'r1',
+          status: 'cancelled',
+          checkInDate: '2026-09-01',
+          checkOutDate: '2026-12-01',
+        },
+      ],
+      'r1',
+      '2026-10-01',
+      '2026-12-15'
+    ),
+    false
+  );
 
   const rollup = calculateHostelInventoryRollup([
     {

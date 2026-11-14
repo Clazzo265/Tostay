@@ -14,8 +14,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 export const DEFAULT_CAMPUS_REFERENCES: Campus[] = [
   {
     id: 'rumphi-main',
-    name: 'Rumphi University Hub (Laws / Boma Corridor)',
-    universityName: 'Target University — Rumphi',
+    name: 'Rumphi Campus',
+    universityName: 'University of Livingstonia',
     district: 'Rumphi',
     country: 'Malawi',
     lat: -11.0186,

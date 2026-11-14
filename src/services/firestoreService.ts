@@ -132,17 +132,29 @@ function mapBooking(id: string, d: Record<string, unknown>): Booking {
   };
 }
 
-export function subscribePublicCampuses(onData: (campuses: Campus[]) => void): Unsubscribe {
+export function subscribePublicCampuses(
+  onData: (campuses: Campus[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(collection(db, 'campuses'), where('isActive', '==', true));
   return onSnapshot(
     q,
     (snap) => {
       const list = snap.docs.map((docSnap) => {
         const d = docSnap.data();
+        const rawName = String(d.name ?? '');
+        const rawUniversity = String(d.universityName ?? '');
+        const defaultRumphi = DEFAULT_CAMPUS_REFERENCES[0];
+        const isLegacyRumphiName =
+          docSnap.id === 'rumphi-main' &&
+          (!rawName || rawName === 'Rumphi University Hub (Laws / Boma Corridor)');
+        const isLegacyRumphiUniv =
+          docSnap.id === 'rumphi-main' &&
+          (!rawUniversity || rawUniversity === 'Target University — Rumphi');
         return {
           id: docSnap.id,
-          name: String(d.name ?? ''),
-          universityName: String(d.universityName ?? ''),
+          name: isLegacyRumphiName ? defaultRumphi.name : rawName,
+          universityName: isLegacyRumphiUniv ? defaultRumphi.universityName : rawUniversity,
           district: String(d.district ?? ''),
           country: String(d.country ?? 'Malawi'),
           lat: Number(d.lat ?? -11.0186),
@@ -154,12 +166,16 @@ export function subscribePublicCampuses(onData: (campuses: Campus[]) => void): U
       onData(list);
     },
     (error) => {
-      console.warn('Campuses listener fallback:', error.message);
+      console.warn('Campuses listener error:', error.message);
+      onError?.(error);
     }
   );
 }
 
-export function subscribeApprovedHostels(onData: (hostels: Hostel[]) => void): Unsubscribe {
+export function subscribeApprovedHostels(
+  onData: (hostels: Hostel[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(
     collection(db, 'hostels'),
     where('listingStatus', '==', 'active'),
@@ -171,12 +187,16 @@ export function subscribeApprovedHostels(onData: (hostels: Hostel[]) => void): U
       onData(snap.docs.map((s) => mapHostel(s.id, s.data())));
     },
     (error) => {
-      console.warn('Approved hostels listener fallback:', error.message);
+      console.warn('Approved hostels listener error:', error.message);
+      onError?.(error);
     }
   );
 }
 
-export function subscribePublishedRooms(onData: (rooms: Room[]) => void): Unsubscribe {
+export function subscribePublishedRooms(
+  onData: (rooms: Room[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(collection(db, 'rooms'), where('isPublished', '==', true));
   return onSnapshot(
     q,
@@ -184,7 +204,8 @@ export function subscribePublishedRooms(onData: (rooms: Room[]) => void): Unsubs
       onData(snap.docs.map((s) => mapRoom(s.id, s.data())));
     },
     (error) => {
-      console.warn('Published rooms listener fallback:', error.message);
+      console.warn('Published rooms listener error:', error.message);
+      onError?.(error);
     }
   );
 }
@@ -382,7 +403,11 @@ export function subscribeUserNotifications(
   );
 }
 
-export function subscribeApprovedReviews(hostelId: string, onData: (reviews: Review[]) => void): Unsubscribe {
+export function subscribeApprovedReviews(
+  hostelId: string,
+  onData: (reviews: Review[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(
     collection(db, 'reviews'),
     where('hostelId', '==', hostelId),
@@ -410,6 +435,7 @@ export function subscribeApprovedReviews(hostelId: string, onData: (reviews: Rev
     },
     (error) => {
       console.warn('Reviews listener info:', error.message);
+      onError?.(error);
     }
   );
 }
@@ -1371,7 +1397,7 @@ export async function initializeCampusAndSettings(adminUid: string): Promise<voi
       action: 'INITIALIZE_PLATFORM_DEFAULTS',
       targetCollection: 'campuses',
       targetId: 'rumphi-main',
-      summary: 'Initialized Rumphi campus reference and global system settings.',
+      summary: 'Initialized University of Livingstonia, Rumphi Campus reference and global system settings.',
       createdAt: serverTimestamp(),
     });
     await batch.commit();

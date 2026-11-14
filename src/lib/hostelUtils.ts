@@ -148,6 +148,33 @@ export function doDatesOverlap(
   return s1 < e2 && s2 < e1;
 }
 
+const ACTIVE_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
+  'pending',
+  'under_review',
+  'viewing_requested',
+  'viewing_confirmed',
+  'accepted',
+]);
+
+export function hasOverlappingActiveBooking(
+  bookings: ReadonlyArray<{
+    roomId: string;
+    status: BookingStatus;
+    checkInDate: string;
+    checkOutDate: string;
+  }>,
+  roomId: string,
+  checkInDate: string,
+  checkOutDate: string
+): boolean {
+  return bookings.some(
+    (b) =>
+      b.roomId === roomId &&
+      ACTIVE_BOOKING_STATUSES.has(b.status) &&
+      doDatesOverlap(b.checkInDate, b.checkOutDate, checkInDate, checkOutDate)
+  );
+}
+
 export function calculateHostelInventoryRollup(rooms: Room[]): {
   totalAvailableRooms: number;
   minPriceMwk: number | null;

@@ -118,7 +118,9 @@ export const OwnerDashboardPage: React.FC = () => {
     const u4 = subscribeUserEnquiries(firebaseUser.uid, 'ownerId', setEnquiries);
     const u5 = subscribeUserConversations(firebaseUser.uid, 'ownerId', (list) => {
       setConversations(list);
-      if (list.length > 0 && !selectedConvoId) setSelectedConvoId(list[0].id);
+      setSelectedConvoId((prev) =>
+        prev && list.some((c) => c.id === prev) ? prev : list[0]?.id ?? null
+      );
     });
     void ensureOwnerFreeSubscription(firebaseUser.uid)
       .then(setSubscription)
@@ -131,10 +133,13 @@ export const OwnerDashboardPage: React.FC = () => {
       u4();
       u5();
     };
-  }, [firebaseUser, selectedConvoId]);
+  }, [firebaseUser]);
 
   useEffect(() => {
-    if (!selectedConvoId) return;
+    if (!selectedConvoId) {
+      setMessages([]);
+      return;
+    }
     return subscribeConversationMessages(selectedConvoId, setMessages);
   }, [selectedConvoId]);
 
@@ -148,7 +153,7 @@ export const OwnerDashboardPage: React.FC = () => {
         <EmptyState
           icon={<Building2 className="w-6 h-6" />}
           title="Sign in to access the Owner Property Studio"
-          description="List hostels in Rumphi, draw verified satellite boundaries, update room counts, and manage student booking requests."
+          description="List hostels near University of Livingstonia, Rumphi Campus, draw verified satellite boundaries, update room counts, and manage student booking requests."
           action={
             <Link
               to="/auth?role=owner"
@@ -161,6 +166,9 @@ export const OwnerDashboardPage: React.FC = () => {
       </div>
     );
   }
+
+  const isSuspended = userPublic?.accountStatus === 'suspended';
+  const needsOwnerRole = userPublic?.role === 'student';
 
   const openNewPropertyForm = () => {
     setEditingHostel(null);
@@ -374,25 +382,53 @@ export const OwnerDashboardPage: React.FC = () => {
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
-            {userPublic?.role === 'student' && (
+            {needsOwnerRole && (
               <button
                 type="button"
+                disabled={isSuspended}
                 onClick={() => void handleSwitchToOwnerRole()}
-                className="min-h-[42px] px-4 py-2 rounded-lg border border-blue-600 text-blue-700 text-sm font-semibold hover:bg-blue-50"
+                className="min-h-[42px] px-4 py-2 rounded-lg border border-blue-600 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-50"
               >
                 Activate Owner Role
               </button>
             )}
             <button
               type="button"
+              disabled={isSuspended || needsOwnerRole}
               onClick={openNewPropertyForm}
-              className="min-h-[42px] px-4 py-2 rounded-lg bg-[#0A192F] text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-slate-800"
+              className="min-h-[42px] px-4 py-2 rounded-lg bg-[#0A192F] text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
               <span>Add Property</span>
             </button>
           </div>
         </div>
+
+        {isSuspended && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+          >
+            <strong>Owner account suspended:</strong> Your ToStay account is currently suspended.
+            Creating or updating properties, rooms, and booking statuses is disabled.
+          </div>
+        )}
+
+        {needsOwnerRole && !isSuspended && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-sm text-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span>
+              Your account is currently set to <strong>Student</strong>. Activate the{' '}
+              <strong>Property Owner</strong> role to register hostels and manage rooms.
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleSwitchToOwnerRole()}
+              className="min-h-[38px] px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shrink-0"
+            >
+              Switch to Owner Account
+            </button>
+          </div>
+        )}
 
         {/* KPI Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
