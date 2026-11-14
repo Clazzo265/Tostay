@@ -1,0 +1,379 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Public-safe user profile metadata and role assignment",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["student", "owner", "university", "admin"] },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended"] },
+        "ownerVerified": { "type": "boolean" },
+        "universityName": { "type": "string", "maxLength": 150 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "accountStatus", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII and preferences for an individual user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "whatsapp": { "type": "string", "maxLength": 32 },
+        "studentIdNumber": { "type": "string", "maxLength": 64 },
+        "businessName": { "type": "string", "maxLength": 120 },
+        "preferredCampusId": { "type": "string", "maxLength": 64 },
+        "maxBudgetMwk": { "type": "number" },
+        "preferredRoomType": { "type": "string", "maxLength": 40 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "Campus": {
+      "title": "Campus",
+      "description": "Verified university campus location and reference metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "universityName": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "district": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "country": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "universityName", "district", "country", "lat", "lng", "isActive", "createdAt"]
+    },
+    "Hostel": {
+      "title": "Hostel",
+      "description": "Student accommodation property listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "campusId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 10, "maxLength": 2500 },
+        "address": { "type": "string", "minLength": 3, "maxLength": 250 },
+        "area": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "entranceLat": { "type": "number" },
+        "entranceLng": { "type": "number" },
+        "hasCoordinates": { "type": "boolean" },
+        "boundaryCoordinates": { "type": "array" },
+        "locationStatus": { "type": "string", "enum": ["unavailable", "unverified", "verified", "rejected"] },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "listingStatus": { "type": "string", "enum": ["draft", "pending_review", "active", "suspended"] },
+        "facilities": { "type": "array" },
+        "imageUrls": { "type": "array" },
+        "minPriceMwk": { "type": "number" },
+        "maxPriceMwk": { "type": "number" },
+        "paymentPeriod": { "type": "string", "enum": ["monthly", "semester", "academic_year"] },
+        "depositMwk": { "type": "number" },
+        "totalAvailableRooms": { "type": "number" },
+        "houseRules": { "type": "string", "maxLength": 1500 },
+        "ownerDisplayName": { "type": "string", "maxLength": 100 },
+        "ownerWhatsapp": { "type": "string", "maxLength": 32 },
+        "isFeatured": { "type": "boolean" },
+        "isSponsored": { "type": "boolean" },
+        "lastAvailabilityConfirmation": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "campusId", "name", "description", "address", "area", "hasCoordinates", "locationStatus", "verificationStatus", "listingStatus", "facilities", "imageUrls", "minPriceMwk", "maxPriceMwk", "paymentPeriod", "depositMwk", "totalAvailableRooms", "isFeatured", "isSponsored", "lastAvailabilityConfirmation", "createdAt", "updatedAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Room category within a hostel",
+      "type": "object",
+      "properties": {
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "category": { "type": "string", "enum": ["single", "shared", "self_contained", "furnished", "other"] },
+        "priceMwk": { "type": "number" },
+        "depositMwk": { "type": "number" },
+        "paymentPeriod": { "type": "string", "enum": ["monthly", "semester", "academic_year"] },
+        "totalUnits": { "type": "number" },
+        "availableUnits": { "type": "number" },
+        "isPublished": { "type": "boolean" },
+        "description": { "type": "string", "maxLength": 600 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostelId", "ownerId", "name", "category", "priceMwk", "depositMwk", "paymentPeriod", "totalUnits", "availableUnits", "isPublished", "updatedAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Student accommodation booking request and reservation lifecycle",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "roomId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "roomName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "checkInDate": { "type": "string", "minLength": 8, "maxLength": 32 },
+        "checkOutDate": { "type": "string", "minLength": 8, "maxLength": 32 },
+        "rentalPeriod": { "type": "string", "enum": ["monthly", "semester", "academic_year"] },
+        "totalAmountMwk": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "under_review", "viewing_requested", "viewing_confirmed", "accepted", "declined", "cancelled", "completed"] },
+        "notes": { "type": "string", "maxLength": 800 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "ownerId", "hostelId", "roomId", "hostelName", "roomName", "studentName", "checkInDate", "checkOutDate", "rentalPeriod", "totalAmountMwk", "status", "createdAt", "updatedAt"]
+    },
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "Student enquiry or physical viewing request",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "type": { "type": "string", "enum": ["general", "viewing"] },
+        "subject": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "message": { "type": "string", "minLength": 4, "maxLength": 1500 },
+        "preferredDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["open", "responded", "scheduled", "closed"] },
+        "ownerReply": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "ownerId", "hostelId", "hostelName", "studentName", "type", "subject", "message", "status", "createdAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Student-to-owner messaging thread",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "ownerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "lastMessage": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "ownerId", "hostelId", "hostelName", "studentName", "ownerName", "lastMessage", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message inside a conversation",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "body", "read", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Student review tied to a completed booking",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "bookingId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "moderationStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "studentName", "hostelId", "bookingId", "rating", "comment", "moderationStatus", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Saved hostel record for a student",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "hostelId", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app user notification",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "category": { "type": "string", "enum": ["booking", "viewing", "verification", "listing", "message", "system"] },
+        "link": { "type": "string", "maxLength": 200 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "body", "category", "read", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Suspicious listing or safety report",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hostelId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reason": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "details": { "type": "string", "minLength": 5, "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "hostelId", "reason", "details", "status", "createdAt", "updatedAt"]
+    },
+    "VerificationRecord": {
+      "title": "VerificationRecord",
+      "description": "Admin verification workflow for owners and hostel locations",
+      "type": "object",
+      "properties": {
+        "targetType": { "type": "string", "enum": ["owner", "hostel"] },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "submittedNotes": { "type": "string", "maxLength": 1000 },
+        "evidenceSummary": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "reviewerId": { "type": "string", "maxLength": 128 },
+        "reviewNotes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetType", "targetId", "ownerId", "status", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable administrative audit log entry",
+      "type": "object",
+      "properties": {
+        "actorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "action": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "targetCollection": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "summary": { "type": "string", "minLength": 2, "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorId", "action", "targetCollection", "targetId", "summary", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Owner monetization subscription tier record",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "plan": { "type": "string", "enum": ["free", "growth", "institutional"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "priceMwk": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "plan", "status", "priceMwk", "createdAt", "updatedAt"]
+    },
+    "SystemSetting": {
+      "title": "SystemSetting",
+      "description": "Platform-wide configuration managed by administrators",
+      "type": "object",
+      "properties": {
+        "featuredEnabled": { "type": "boolean" },
+        "sponsoredLabelText": { "type": "string", "maxLength": 80 },
+        "bookingServiceFeePercent": { "type": "number" },
+        "maintenanceMode": { "type": "boolean" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["featuredEnabled", "sponsoredLabelText", "bookingServiceFeePercent", "maintenanceMode", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public-safe user metadata and role"
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Isolated user PII and preferences"
+    },
+    "/admins/{adminId}": {
+      "schema": "object",
+      "description": "Administrator registry for server-side RBAC lookup"
+    },
+    "/campuses/{campusId}": {
+      "schema": { "$ref": "#/entities/Campus" },
+      "description": "Verified university campuses"
+    },
+    "/hostels/{hostelId}": {
+      "schema": { "$ref": "#/entities/Hostel" },
+      "description": "Student accommodation property listings"
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/Room" },
+      "description": "Room categories linked to hostels"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Accommodation booking requests and states"
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": { "$ref": "#/entities/Enquiry" },
+      "description": "Student enquiries and viewing requests"
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Student-owner chat threads"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages belonging to a conversation"
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Reviews from completed bookings"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "Student saved hostels"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "In-app notifications"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Listing fraud or safety reports"
+    },
+    "/verificationRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/VerificationRecord" },
+      "description": "Verification submissions and admin decisions"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable admin audit trail"
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Owner subscription tiers"
+    },
+    "/systemSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SystemSetting" },
+      "description": "Global platform configuration"
+    }
+  }
+}

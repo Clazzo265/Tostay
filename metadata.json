@@ -1,0 +1,6 @@
+{
+  "name": "ToStay",
+  "description": "Find your place. Feel at home. Student accommodation discovery, verified Google Satellite mapping, bookings, and property management platform.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
